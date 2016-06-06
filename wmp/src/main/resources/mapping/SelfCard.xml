@@ -59,7 +59,7 @@
 		uid=#{uid};
 	</delete>
 	
-	<delete id="deleteOneCard" parameterType="INTEGER">
+	<delete id="deleteOneCard" parameterType="String">
 		DELETE FROM
 		myselfcard
 		WHERE

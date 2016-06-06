@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,7 @@ public class SelfCardController {
 		private Logger logger = LoggerFactory.getLogger(CardController.class);
 		private static final String tokenExpiresIn = Global.getConfig("token_expires_in");
 		private static final String photoFolder = Global.getConfig("photo_folder");
+		private static final String dns_name = Global.getConfig("dns_name");
 
 		@Autowired
 		ServletContext servletContext;
@@ -140,21 +142,20 @@ public class SelfCardController {
 			return rb;
 		}
 
-		@RequestMapping(value = "/put", method = RequestMethod.POST)
+		@RequestMapping(value = "/changecard", method = RequestMethod.POST)
 		@ResponseBody
-		public Object addCard(@RequestBody AddCardParam acp) {
-
-			String token;
-			token = acp.getToken();
-
-			String userid;
-			String uuid;
+		public Object changeCard(@RequestBody AddCardParam ap) {
 			ResultBean rb = new ResultBean();
-			if (token != null) {
+			String token = ap.getToken();
+			String userid;
+			// String uuid;
+
+			if (!StringUtils.isEmpty(token)) {
 				token = token.trim();
 				userid = RedisUtil.get(token);
 				logger.info("token != null and get userid = " + userid);
-				if (userid != null) {
+				if (!StringUtils.isEmpty(userid)) {
+					userid = userid.trim();
 					RedisUtil.setex(token, Integer.parseInt(tokenExpiresIn), userid);
 				} else {
 					rb.setCode(0);
@@ -166,120 +167,158 @@ public class SelfCardController {
 				rb.setMessage("upload without token");
 				return rb;
 			}
-
-			String id = acp.getId();
-			String name = acp.getName();
-			String photolink = acp.getPhotolink();
-			String company = acp.getCompany();
-			String title = acp.getTitle();
-			String email = acp.getEmail();
-			String phone = acp.getPhone();
-			String fax = acp.getFax();
-			String mobile = acp.getMobile();
-			String address = acp.getAddress();
-			String website = acp.getWebsite();
-			String seriesNumber = acp.getSeriesNumber();
-			String themeType = acp.getThemeType();
-			String language = acp.getLanguage();
-
-			NameCard nc = new NameCard();
-			nc.setUid(Integer.parseInt(userid.trim()));
-			boolean updateFlag = false;
-
-			if (!StringUtils.isEmpty(id)) {
-				System.out.println("id = " + id);
-				System.out.println("userid = " + userid);
-				nc.setId(id.trim());
-				uuid = id.trim();
-				// map.put("isNotUpdate", "0");
-				updateFlag = true;
+			NameCard nc = ap.toNameCard();
+			nc.setUid(Integer.parseInt(userid));
+			if (selfCardService.modifyOneCard(nc)) {
+				rb.setCode(1);
+				rb.setMessage("change self card success");
+				rb.setData(nc.getId());
 			} else {
-				uuid = IdGen.uuid();
-				nc.setId(uuid);
-				// map.put("isNotUpdate", "1");
+				rb.setCode(0);
+				rb.setMessage("change self card fail");
 			}
-
-			if (!StringUtils.isEmpty(name)) {
-				nc.setName(name.trim());
-			}
-			if (!StringUtils.isEmpty(photolink)) {
-				nc.setPhotolink(photolink.trim());
-			}
-			if (!StringUtils.isEmpty(company)) {
-				nc.setCompany(company.trim());
-			}
-			if (!StringUtils.isEmpty(title)) {
-				nc.setTitle(title.trim());
-			}
-			if (!StringUtils.isEmpty(email)) {
-				nc.setEmail(email.trim());
-			}
-			if (!StringUtils.isEmpty(phone)) {
-				nc.setPhone(phone.trim());
-			}
-			if (!StringUtils.isEmpty(fax)) {
-				nc.setFax(fax.trim());
-			}
-			if (!StringUtils.isEmpty(mobile)) {
-				nc.setMobile(mobile.trim());
-			}
-			if (!StringUtils.isEmpty(address)) {
-				nc.setAddress(address.trim());
-			}
-			if (!StringUtils.isEmpty(website)) {
-				nc.setWebsite(website.trim());
-			}
-			if (!StringUtils.isEmpty(seriesNumber)) {
-				nc.setSeriesNumber(Integer.parseInt(seriesNumber.trim()));
-			}
-			if (!StringUtils.isEmpty(themeType)) {
-				nc.setThemeType(Integer.parseInt(themeType.trim()));
-			}
-			if (!StringUtils.isEmpty(language)) {
-				nc.setLanguage(Integer.parseInt(language.trim()));
-			}
-
-			uploadCard(nc, rb, updateFlag);
 			return rb;
-
 		}
-
-		private void uploadCard(NameCard nc, ResultBean rb, boolean isUpdate) {
-			Map<String, String> map = new HashMap<String, String>();
-			if (isUpdate) {
-				if (selfCardService.modifyOneCard(nc)) {
-					rb.setMessage("upload update success");
-					map.put("id", nc.getId());
-					map.put("isNotUpdate", "0");
-					rb.setData(map);
-					rb.setCode(MessageConstants.success.getValue());
-				} else {
-					if (selfCardService.addOneCard(nc)) {
-						rb.setMessage("meant to update but in fact insert success");
-						map.put("id", nc.getId());
-						map.put("isNotUpdate", "1");
-						rb.setData(map);
-						rb.setCode(MessageConstants.success.getValue());
-					} else {
-						rb.setMessage("upload update fail");
-						rb.setCode(MessageConstants.error.getValue());
-					}
-				}
-
-			} else {
-				if (selfCardService.addOneCard(nc)) {
-					rb.setMessage("upload insert success");
-					map.put("id", nc.getId());
-					map.put("isNotUpdate", "1");
-					rb.setData(map);
-					rb.setCode(MessageConstants.success.getValue());
-				} else {
-					rb.setMessage("upload insert fail");
-					rb.setCode(MessageConstants.error.getValue());
-				}
-			}
-
-		}
+//		@RequestMapping(value = "/put", method = RequestMethod.POST)
+//		@ResponseBody
+//		public Object addCard(@RequestBody AddCardParam acp) {
+//
+//			String token;
+//			token = acp.getToken();
+//
+//			String userid;
+//			String uuid;
+//			ResultBean rb = new ResultBean();
+//			if (token != null) {
+//				token = token.trim();
+//				userid = RedisUtil.get(token);
+//				logger.info("token != null and get userid = " + userid);
+//				if (userid != null) {
+//					RedisUtil.setex(token, Integer.parseInt(tokenExpiresIn), userid);
+//				} else {
+//					rb.setCode(0);
+//					rb.setMessage("token expired");
+//					return rb;
+//				}
+//			} else {
+//				rb.setCode(0);
+//				rb.setMessage("upload without token");
+//				return rb;
+//			}
+//
+//			String id = acp.getId();
+//			String name = acp.getName();
+//			String photolink = acp.getPhotolink();
+//			String company = acp.getCompany();
+//			String title = acp.getTitle();
+//			String email = acp.getEmail();
+//			String phone = acp.getPhone();
+//			String fax = acp.getFax();
+//			String mobile = acp.getMobile();
+//			String address = acp.getAddress();
+//			String website = acp.getWebsite();
+//			String seriesNumber = acp.getSeriesNumber();
+//			String themeType = acp.getThemeType();
+//			String language = acp.getLanguage();
+//
+//			NameCard nc = new NameCard();
+//			nc.setUid(Integer.parseInt(userid.trim()));
+//			boolean updateFlag = false;
+//
+//			if (!StringUtils.isEmpty(id)) {
+//				System.out.println("id = " + id);
+//				System.out.println("userid = " + userid);
+//				nc.setId(id.trim());
+//				uuid = id.trim();
+//				// map.put("isNotUpdate", "0");
+//				updateFlag = true;
+//			} else {
+//				uuid = IdGen.uuid();
+//				nc.setId(uuid);
+//				// map.put("isNotUpdate", "1");
+//			}
+//
+//			if (!StringUtils.isEmpty(name)) {
+//				nc.setName(name.trim());
+//			}
+//			if (!StringUtils.isEmpty(photolink)) {
+//				nc.setPhotolink(photolink.trim());
+//			}
+//			if (!StringUtils.isEmpty(company)) {
+//				nc.setCompany(company.trim());
+//			}
+//			if (!StringUtils.isEmpty(title)) {
+//				nc.setTitle(title.trim());
+//			}
+//			if (!StringUtils.isEmpty(email)) {
+//				nc.setEmail(email.trim());
+//			}
+//			if (!StringUtils.isEmpty(phone)) {
+//				nc.setPhone(phone.trim());
+//			}
+//			if (!StringUtils.isEmpty(fax)) {
+//				nc.setFax(fax.trim());
+//			}
+//			if (!StringUtils.isEmpty(mobile)) {
+//				nc.setMobile(mobile.trim());
+//			}
+//			if (!StringUtils.isEmpty(address)) {
+//				nc.setAddress(address.trim());
+//			}
+//			if (!StringUtils.isEmpty(website)) {
+//				nc.setWebsite(website.trim());
+//			}
+//			if (!StringUtils.isEmpty(seriesNumber)) {
+//				nc.setSeriesNumber(Integer.parseInt(seriesNumber.trim()));
+//			}
+//			if (!StringUtils.isEmpty(themeType)) {
+//				nc.setThemeType(Integer.parseInt(themeType.trim()));
+//			}
+//			if (!StringUtils.isEmpty(language)) {
+//				nc.setLanguage(Integer.parseInt(language.trim()));
+//			}
+//
+//			uploadCard(nc, rb, updateFlag);
+//			return rb;
+//
+//		}
+//
+//		private void uploadCard(NameCard nc, ResultBean rb, boolean isUpdate) {
+//			Map<String, String> map = new HashMap<String, String>();
+//			if (isUpdate) {
+//				if (selfCardService.modifyOneCard(nc)) {
+//					rb.setMessage("upload update success");
+//					map.put("id", nc.getId());
+//					map.put("isNotUpdate", "0");
+//					rb.setData(map);
+//					rb.setCode(MessageConstants.success.getValue());
+//				} else {
+//					if (selfCardService.addOneCard(nc)) {
+//						rb.setMessage("meant to update but in fact insert success");
+//						map.put("id", nc.getId());
+//						map.put("isNotUpdate", "1");
+//						rb.setData(map);
+//						rb.setCode(MessageConstants.success.getValue());
+//					} else {
+//						rb.setMessage("upload update fail");
+//						rb.setCode(MessageConstants.error.getValue());
+//					}
+//				}
+//
+//			} else {
+//				if (selfCardService.addOneCard(nc)) {
+//					rb.setMessage("upload insert success");
+//					map.put("id", nc.getId());
+//					map.put("isNotUpdate", "1");
+//					rb.setData(map);
+//					rb.setCode(MessageConstants.success.getValue());
+//				} else {
+//					rb.setMessage("upload insert fail");
+//					rb.setCode(MessageConstants.error.getValue());
+//				}
+//			}
+//
+//		}
 
 		@RequestMapping(value = "/removeall", method = RequestMethod.POST)
 		@ResponseBody
@@ -340,14 +379,24 @@ public class SelfCardController {
 			}
 
 			List<String> cardids = cp.getCardids();
-			boolean r = selfCardService.deleteCards(cardids);
-
-			if (r) {
+			List<String> rs = new ArrayList<String>();
+			boolean flag = true;
+			for(String cardid : cardids){
+				if(selfCardService.deleteOneCard(cardid)){
+					rs.add(cardid);
+				} else {
+					flag = false;
+				}
+			}
+			
+			if (flag) {
 				rb.setCode(1);
 				rb.setMessage("removecards success");
+				rb.setData(rs);
 			} else {
 				rb.setCode(0);
 				rb.setMessage("removecards fail");
+				rb.setData(rs);
 			}
 
 			return rb;
@@ -472,8 +521,10 @@ public class SelfCardController {
 				System.out.println(req.getScheme() + "://" + req.getServerName() + ":" + req.getServerPort()
 						+ req.getContextPath() + photoFolder);
 
-				fileUrl = req.getScheme() + "://" + req.getServerName() + ":" + req.getServerPort()
-						+ req.getContextPath() + photoFolder + filename;
+//				fileUrl = req.getScheme() + "://" + req.getServerName() + ":" + req.getServerPort()
+//						+ req.getContextPath() + photoFolder + filename;
+				fileUrl = req.getScheme() + "://" + dns_name
+				+ req.getContextPath() + photoFolder + filename;
 
 				rb.setCode(1);
 				rb.setMessage("upload photo success");
@@ -522,7 +573,9 @@ public class SelfCardController {
 					logger.info(req.getServerName() + ":" + req.getServerPort() + "/" + req.getServletPath());
 					System.out.println(req.getScheme() + "://" + req.getServerName() + ":" + req.getServerPort()
 							+ req.getContextPath() + photoFolder);
-					fileUrl = req.getScheme() + "://" + req.getServerName() + ":" + req.getServerPort()
+//					fileUrl = req.getScheme() + "://" + req.getServerName() + ":" + req.getServerPort()
+//							+ req.getContextPath() + photoFolder + filename;
+					fileUrl = req.getScheme() + "://" + dns_name
 							+ req.getContextPath() + photoFolder + filename;
 					map.put(spp.getNo(), fileUrl);
 				}

@@ -1,10 +1,13 @@
 package controller;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -29,7 +32,7 @@ import utils.MessageConstants;
 import utils.RedisUtil;
 
 @Controller
-@RequestMapping(value = "mobile")
+@RequestMapping(value = "/mobile")
 public class LoginController {
 
 	private Logger logger = LoggerFactory.getLogger(LoginController.class);
@@ -38,22 +41,21 @@ public class LoginController {
 	@Autowired
 	private LoginService loginService;
 
-	@RequestMapping(value = "/login", method = RequestMethod.POST, consumes = { "application/x-www-form-urlencoded",
-			"application/json" })
+	@RequestMapping(value = "/login", method = RequestMethod.POST)
 	@ResponseBody
 	public Object login(@RequestBody LoginParam lp, HttpServletRequest req) {
-
-		String contenttype = req.getHeader("content-type");
+		
+//		String contenttype = req.getHeader("content-type");
 		String token, mobile, password;
 		ResultBean rb = new ResultBean();
 
-		if (contenttype.equalsIgnoreCase("application/json")) {
+//		if (contenttype.equalsIgnoreCase("application/json")) {
 			mobile = lp.getMobile();
 			password = lp.getPassword();
-		} else {
-			mobile = req.getParameter("mobile");
-			password = req.getParameter("password");
-		}
+//		} else {
+//			mobile = req.getParameter("mobile");
+//			password = req.getParameter("password");
+//		}
 
 		Map<String, String> map = new HashMap<String, String>();
 		password = MD5.getMD5Code(password);
